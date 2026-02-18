@@ -1,0 +1,13 @@
+{
+  "name": "ops-journal-log",
+  "private": true,
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w api && npm run build -w web",
+    "db:migrate": "npm run migrate -w api",
+    "db:seed": "npm run seed -w api",
+    "db:generate": "npm run db:generate -w api"
+  }
+}
