@@ -32,8 +32,6 @@ services:
     build: ./web
     ports:
       - "3000:3000"
-    environment:
-      INTERNAL_API_URL: http://api:3001
     depends_on:
       - api
 
