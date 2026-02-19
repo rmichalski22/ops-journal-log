@@ -1,3 +1,18 @@
+const TOKEN_KEY = "session_token";
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 type Options = RequestInit & { params?: Record<string, string> };
 
 async function fetchApi(path: string, options: Options = {}) {
@@ -9,11 +24,9 @@ async function fetchApi(path: string, options: Options = {}) {
   }
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   if (!(init.body instanceof FormData) && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
-  const res = await fetch(url, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || res.statusText);
@@ -25,9 +38,16 @@ async function fetchApi(path: string, options: Options = {}) {
 
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      fetchApi("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-    logout: () => fetchApi("/api/auth/logout", { method: "POST" }),
+    login: async (email: string, password: string) => {
+      const res = await fetchApi("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+      if (res.token) setToken(res.token);
+      return res;
+    },
+    logout: async () => {
+      const res = await fetchApi("/api/auth/logout", { method: "POST" });
+      clearToken();
+      return res;
+    },
     me: () => fetchApi("/api/auth/me"),
   },
   nodes: {

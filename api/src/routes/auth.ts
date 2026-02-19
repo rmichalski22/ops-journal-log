@@ -33,24 +33,15 @@ export async function authRoutes(fastify: FastifyInstance) {
         data: { userId: user.id, token, expiresAt },
       });
       await createAuditEvent({ type: "login_success", actorId: user.id, metadata: { email } });
-      const useSecureCookie = process.env.COOKIE_SECURE === "true";
-      reply.setCookie(SESSION_COOKIE, token, {
-        httpOnly: true,
-        secure: useSecureCookie,
-        sameSite: useSecureCookie ? "none" : "lax",
-        path: "/",
-        maxAge: config.sessionMaxAgeDays * 24 * 60 * 60,
-      });
-      return { user: { id: user.id, email: user.email, role: user.role } };
+      return { token, user: { id: user.id, email: user.email, role: user.role } };
     }
   );
 
   fastify.post("/logout", async (req: FastifyRequest, reply: FastifyReply) => {
-    const token = req.cookies?.[SESSION_COOKIE];
+    const token = req.cookies?.[SESSION_COOKIE] ?? req.headers.authorization?.replace(/^Bearer\s+/i, "");
     if (token) {
       await prisma.session.deleteMany({ where: { token } });
     }
-    reply.clearCookie(SESSION_COOKIE, { path: "/" });
     return { ok: true };
   });
 
