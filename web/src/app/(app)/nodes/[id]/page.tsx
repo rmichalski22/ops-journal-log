@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { AddRecordForm } from "@/components/AddRecordForm";
 import { AddNodeForm } from "@/components/AddNodeForm";
 
-type Record = { id: string; title: string; occurredAt: string; status: string };
+type NodeRecord = { id: string; title: string; occurredAt: string; status: string };
 
 type Node = {
   id: string;
@@ -17,7 +17,7 @@ type Node = {
   type: string;
   parent?: { id: string; name: string };
   createdBy: { email: string };
-  records: Record[];
+  records: NodeRecord[];
 };
 
 export default function NodeDetailPage() {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
-type Record = {
+type FeedRecord = {
   id: string;
   title: string;
   occurredAt: string;
@@ -15,7 +15,7 @@ type Record = {
 };
 
 export default function DashboardPage() {
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<FeedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

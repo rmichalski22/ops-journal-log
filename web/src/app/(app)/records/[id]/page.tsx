@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
-type Record = {
+type ChangeRecord = {
   id: string;
   title: string;
   description: string;
@@ -39,7 +39,7 @@ export default function RecordDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const [record, setRecord] = useState<Record | null>(null);
+  const [record, setRecord] = useState<ChangeRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRevisions, setShowRevisions] = useState(false);
   const [uploading, setUploading] = useState(false);
