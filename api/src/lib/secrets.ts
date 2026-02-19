@@ -21,7 +21,7 @@ export function scanForSecrets(text: string): boolean {
 export function scanRecordForSecrets(data: {
   title?: string;
   description?: string;
-  reason?: string;
+  reason?: string | null;
   links?: string[];
 }): boolean {
   const toScan = [

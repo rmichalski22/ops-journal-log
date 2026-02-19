@@ -121,7 +121,7 @@ export async function recordRoutes(fastify: FastifyInstance) {
           recordId: record.id,
           editorId: user.id,
           snapshotBefore: {},
-          snapshotAfter: recordToSnapshot(record) as unknown as Record<string, unknown>,
+          snapshotAfter: JSON.parse(JSON.stringify(recordToSnapshot(record))),
           secretAck: hasSecrets ? true : null,
         },
       });
@@ -214,8 +214,8 @@ export async function recordRoutes(fastify: FastifyInstance) {
           data: {
             recordId: record.id,
             editorId: user.id,
-            snapshotBefore: before as object,
-            snapshotAfter: recordToSnapshot(r) as object,
+            snapshotBefore: JSON.parse(JSON.stringify(before)),
+            snapshotAfter: JSON.parse(JSON.stringify(recordToSnapshot(r))),
             secretAck: hasSecrets ? true : null,
           },
         });
