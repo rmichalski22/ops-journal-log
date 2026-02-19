@@ -47,6 +47,9 @@ async function main() {
   const { initStorageBackend } = await import("./lib/storage.js");
   await initStorageBackend();
 
+  const { seedAdmin } = await import("./seed-admin.js");
+  await seedAdmin().catch((e) => console.error("Seed error (non-fatal):", e));
+
   const { startNotificationWorker } = await import("./services/notificationWorker.js");
   startNotificationWorker(15000);
 
