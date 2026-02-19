@@ -44,6 +44,9 @@ async function main() {
 
   fastify.get("/api/health", async () => ({ ok: true }));
 
+  const { initStorageBackend } = await import("./lib/storage.js");
+  await initStorageBackend();
+
   const { startNotificationWorker } = await import("./services/notificationWorker.js");
   startNotificationWorker(15000);
 

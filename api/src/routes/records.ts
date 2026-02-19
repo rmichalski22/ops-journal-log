@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ChangeType, Impact, RecordStatus } from "@prisma/client";
 import { prisma } from "../db.js";
-import { requireEditor } from "../services/nodes.js";
+import { requireAuth, requireEditor } from "../services/nodes.js";
 import { nodeIsVisibleToUser } from "../services/nodes.js";
 import {
   recordToSnapshot,
@@ -18,7 +18,7 @@ export async function recordRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>(
     "/:id",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const record = await prisma.changeRecord.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: {
@@ -35,10 +35,10 @@ export async function recordRoutes(fastify: FastifyInstance) {
     }
   );
 
-  fastify.get<{ Params: { id: string }; Querystring: { rev?: string } }>(
+  fastify.get<{ Params: { id: string; revId: string } }>(
     "/:id/revisions/:revId",
     async (req: FastifyRequest<{ Params: { id: string; revId: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const record = await prisma.changeRecord.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: { node: true },

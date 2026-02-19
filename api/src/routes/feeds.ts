@@ -66,7 +66,7 @@ export async function feedRoutes(fastify: FastifyInstance) {
       prisma.changeRecord.findMany({
         where,
         include: {
-          node: { select: { id: true, name: true, path: true } },
+          node: { select: { id: true, name: true, path: true, pathIds: true, visibilityMode: true, allowedRoles: true } },
           createdBy: { select: { email: true } },
         },
         orderBy: { occurredAt: "desc" },

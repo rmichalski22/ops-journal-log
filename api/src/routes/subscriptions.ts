@@ -14,7 +14,7 @@ export async function subscriptionRoutes(fastify: FastifyInstance) {
     const user = requireAuth(req);
     const subs = await prisma.subscription.findMany({
       where: { userId: user.id },
-      include: { node: { select: { id: true, name: true, path: true } } },
+      include: { node: { select: { id: true, name: true, path: true, pathIds: true, visibilityMode: true, allowedRoles: true } } },
     });
     const visible: typeof subs = [];
     for (const s of subs) {

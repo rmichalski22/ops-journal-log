@@ -115,11 +115,11 @@ export async function nodeRoutes(fastify: FastifyInstance) {
       const allowedRoles = ar?.filter((r) => r === "admin" || r === "editor") as ("admin" | "editor")[] | undefined;
 
       const moveNode = newParentId !== undefined && newParentId !== node.parentId;
-      if (moveNode && !requireAdmin(req)) {
-        return reply.status(403).send({ error: "Only admin can move nodes" });
+      if (moveNode) {
+        requireAdmin(req);
       }
-      if ((visibilityMode || allowedRoles) && !requireAdmin(req)) {
-        return reply.status(403).send({ error: "Only admin can restrict visibility" });
+      if (visibilityMode || allowedRoles) {
+        requireAdmin(req);
       }
 
       const updates: Record<string, unknown> = {};
@@ -140,16 +140,23 @@ export async function nodeRoutes(fastify: FastifyInstance) {
         updates.path = parentPath ? `${parentPath}/${slug}` : `/${slug}`;
       }
 
-      if (moveNode && newParentId !== null) {
-        const newParent = await prisma.node.findFirst({ where: { id: newParentId, deletedAt: null } });
-        if (!newParent) return reply.status(400).send({ error: "New parent not found" });
-        const newPath = `${newParent.path}/${node.slug}`;
-        const newPathIds = [...newParent.pathIds, newParentId];
-        updates.parentId = newParentId;
-        updates.path = newPath;
-        updates.pathIds = newPathIds;
+      if (moveNode) {
+        const effectiveSlug = (updates.slug as string) ?? node.slug;
+        if (newParentId) {
+          const newParent = await prisma.node.findFirst({ where: { id: newParentId, deletedAt: null } });
+          if (!newParent) return reply.status(400).send({ error: "New parent not found" });
+          const newPath = `${newParent.path}/${effectiveSlug}`;
+          const newPathIds = [...newParent.pathIds, newParentId];
+          updates.parentId = newParentId;
+          updates.path = newPath;
+          updates.pathIds = newPathIds;
+        } else {
+          updates.parentId = null;
+          updates.path = `/${effectiveSlug}`;
+          updates.pathIds = [];
+        }
         await prisma.node.update({ where: { id: node.id }, data: updates as object });
-        await updateNodePathRecursive(node.id, newPath, newPathIds);
+        await updateNodePathRecursive(node.id, updates.path as string, updates.pathIds as string[]);
         await createAuditEvent({ type: "node_move", actorId: user.id, metadata: { nodeId: node.id, from: node.parentId, to: newParentId } });
       } else if (visibilityMode === "restricted" || (node.visibilityMode === "restricted" && allowedRoles !== undefined)) {
         await prisma.node.update({ where: { id: node.id }, data: updates as object });

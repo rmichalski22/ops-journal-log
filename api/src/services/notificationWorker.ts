@@ -5,6 +5,7 @@ import { createAuditEvent } from "./audit.js";
 export async function processNotificationOutbox() {
   const pending = await prisma.notificationOutbox.findMany({
     where: { status: "pending" },
+    orderBy: { scheduledAt: "asc" },
     take: 20,
     include: {
       user: true,

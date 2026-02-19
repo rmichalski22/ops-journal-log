@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [to, setTo] = useState("");
 
   useEffect(() => {
+    setLoading(true);
     const params: Record<string, string> = {};
     if (from) params.from = from;
     if (to) params.to = to;

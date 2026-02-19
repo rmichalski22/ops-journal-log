@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../db.js";
-import { requireEditor } from "../services/nodes.js";
+import { requireAuth, requireEditor } from "../services/nodes.js";
 import { canUserAccessRecord } from "../services/records.js";
 import { getStorageBackendSync } from "../lib/storage.js";
 import { createAuditEvent } from "../services/audit.js";
@@ -58,7 +58,7 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
   }>(
     "/:id/download",
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const att = await prisma.attachment.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: { record: { include: { node: true } } },

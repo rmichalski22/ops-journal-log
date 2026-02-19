@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { readdir, unlink } from "node:fs/promises";
+import { unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Readable } from "node:stream";
 import { config } from "../config.js";
@@ -108,6 +108,12 @@ export async function getStorageBackend(): Promise<StorageBackend> {
   const s3 = await createS3Backend();
   _defaultBackend = s3 ?? new LocalStorageBackend(config.attachments.dir);
   return _defaultBackend;
+}
+
+export async function initStorageBackend(): Promise<void> {
+  if (_defaultBackend) return;
+  const s3 = await createS3Backend();
+  _defaultBackend = s3 ?? new LocalStorageBackend(config.attachments.dir);
 }
 
 export function getStorageBackendSync(): StorageBackend {

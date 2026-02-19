@@ -38,9 +38,8 @@ export async function enqueueNotifications(data: { recordId: string; eventType: 
   const seen = new Set<string>();
   const allSubs = [...directSubs, ...ancestorSubs];
   for (const sub of allSubs) {
-    const key = `${sub.userId}-${sub.nodeId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (seen.has(sub.userId)) continue;
+    seen.add(sub.userId);
     if (!impactMeetsThreshold(record.impact, sub.impactThreshold)) continue;
     await prisma.notificationOutbox.create({
       data: {

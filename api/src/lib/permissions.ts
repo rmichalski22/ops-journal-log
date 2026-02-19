@@ -19,8 +19,7 @@ export function canUserSeeNode(
   node: Pick<Node, "pathIds" | "visibilityMode" | "allowedRoles">,
   ancestorNodes: Array<Pick<Node, "visibilityMode" | "allowedRoles">>
 ): VisibilityResolution {
-  const chain = ancestorNodes;
-  for (const ancestor of chain) {
+  for (const ancestor of ancestorNodes) {
     const mode = ancestor.visibilityMode === "inherit" ? "public_internal" : ancestor.visibilityMode;
     if (mode === "restricted") {
       if (ancestor.allowedRoles.length === 0) {
@@ -29,7 +28,6 @@ export function canUserSeeNode(
       if (!ancestor.allowedRoles.includes(userRole)) {
         return { visible: false, reason: "role not in allowed roles" };
       }
-      return { visible: true };
     }
   }
   const mode = node.visibilityMode === "inherit" ? "public_internal" : node.visibilityMode;

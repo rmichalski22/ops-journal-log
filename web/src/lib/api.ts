@@ -17,7 +17,9 @@ async function fetchApi(path: string, options: Options = {}) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || res.statusText);
   }
-  return res.json();
+  const text = await res.text();
+  if (!text) return {};
+  return JSON.parse(text);
 }
 
 export const api = {

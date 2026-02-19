@@ -22,6 +22,7 @@ export default function AuditPage() {
   const [to, setTo] = useState("");
 
   useEffect(() => {
+    setLoading(true);
     const params: Record<string, string> = {};
     if (type) params.type = type;
     if (actorId) params.actorId = actorId;
