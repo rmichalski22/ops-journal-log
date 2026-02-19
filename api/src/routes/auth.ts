@@ -33,10 +33,11 @@ export async function authRoutes(fastify: FastifyInstance) {
         data: { userId: user.id, token, expiresAt },
       });
       await createAuditEvent({ type: "login_success", actorId: user.id, metadata: { email } });
+      const useSecureCookie = process.env.COOKIE_SECURE === "true";
       reply.setCookie(SESSION_COOKIE, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: useSecureCookie,
+        sameSite: useSecureCookie ? "none" : "lax",
         path: "/",
         maxAge: config.sessionMaxAgeDays * 24 * 60 * 60,
       });
