@@ -7,6 +7,39 @@ import { createAuditEvent } from "../services/audit.js";
 
 const SESSION_COOKIE = "session";
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000 * config.sessionMaxAgeDays;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_ATTEMPT_LIMIT = 5;
+const loginAttempts = new Map<string, { count: number; firstAt: number }>();
+
+function attemptKey(email: string, ip: string): string {
+  return `${email.toLowerCase()}|${ip}`;
+}
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const state = loginAttempts.get(key);
+  if (!state) return false;
+  if (now - state.firstAt > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return state.count >= LOGIN_ATTEMPT_LIMIT;
+}
+
+function registerAttempt(key: string) {
+  const now = Date.now();
+  const state = loginAttempts.get(key);
+  if (!state || now - state.firstAt > LOGIN_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAt: now });
+    return;
+  }
+  state.count += 1;
+  loginAttempts.set(key, state);
+}
+
+function clearAttempts(key: string) {
+  loginAttempts.delete(key);
+}
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: { email: string; password: string } }>(
@@ -22,13 +55,26 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
     async (req, reply) => {
       const { email, password } = req.body;
+      const key = attemptKey(email, req.ip);
+      if (isRateLimited(key)) {
+        await createAuditEvent({ type: "login_failure", metadata: { email, ip: req.ip, reason: "rate_limited" } });
+        return reply.status(429).send({ error: "Too many login attempts. Try again later." });
+      }
       const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
       if (!user || !(await argon2.verify(user.passwordHash, password))) {
-        await createAuditEvent({ type: "login_failure", metadata: { email } });
+        registerAttempt(key);
+        await createAuditEvent({ type: "login_failure", metadata: { email, ip: req.ip } });
         return reply.status(401).send({ error: "Invalid email or password" });
+      }
+
+      clearAttempts(key);
+      const currentToken = req.cookies?.[SESSION_COOKIE];
+      if (currentToken) {
+        await prisma.session.deleteMany({ where: { token: currentToken } });
       }
       const token = nanoid(32);
       const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS);
+      await prisma.session.deleteMany({ where: { userId: user.id } });
       await prisma.session.create({
         data: { userId: user.id, token, expiresAt },
       });

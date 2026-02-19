@@ -16,7 +16,13 @@ async function main() {
   const fastify = Fastify({ logger: true });
 
   await fastify.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin || config.allowedOrigins.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("Origin not allowed"), false);
+    },
     credentials: true,
   });
   await fastify.register(cookie, {
@@ -27,11 +33,13 @@ async function main() {
   });
   await fastify.register(authPlugin);
 
-  fastify.setErrorHandler((err, _req, reply) => {
+  fastify.setErrorHandler((err, req, reply) => {
     if (err.message === "Unauthorized") return reply.status(401).send({ error: "Unauthorized" });
     if (err.message.startsWith("Forbidden")) return reply.status(403).send({ error: err.message });
     if (err.message === "Not found" || err.message?.includes("not found")) return reply.status(404).send({ error: err.message });
-    reply.send(err);
+    req.log.error(err);
+    const errorMessage = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
+    reply.status((err as { statusCode?: number }).statusCode ?? 500).send({ error: errorMessage });
   });
 
   await fastify.register(authRoutes, { prefix: "/api/auth" });

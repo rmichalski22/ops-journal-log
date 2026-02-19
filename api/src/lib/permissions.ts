@@ -19,25 +19,24 @@ export function canUserSeeNode(
   node: Pick<Node, "pathIds" | "visibilityMode" | "allowedRoles">,
   ancestorNodes: Array<Pick<Node, "visibilityMode" | "allowedRoles">>
 ): VisibilityResolution {
-  const chain = ancestorNodes;
-  for (const ancestor of chain) {
-    const mode = ancestor.visibilityMode === "inherit" ? "public_internal" : ancestor.visibilityMode;
-    if (mode === "restricted") {
-      if (ancestor.allowedRoles.length === 0) {
-        return { visible: false, reason: "restricted with no allowed roles" };
-      }
-      if (!ancestor.allowedRoles.includes(userRole)) {
-        return { visible: false, reason: "role not in allowed roles" };
-      }
-      return { visible: true };
+  const chain = [...ancestorNodes, node];
+  let effectiveRestriction: Role[] | null = null;
+
+  for (const current of chain) {
+    if (current.visibilityMode === "restricted") {
+      effectiveRestriction = current.allowedRoles;
+      continue;
+    }
+    if (current.visibilityMode === "public_internal") {
+      effectiveRestriction = null;
     }
   }
-  const mode = node.visibilityMode === "inherit" ? "public_internal" : node.visibilityMode;
-  if (mode === "restricted") {
-    if (node.allowedRoles.length === 0) {
+
+  if (effectiveRestriction) {
+    if (effectiveRestriction.length === 0) {
       return { visible: false, reason: "restricted with no allowed roles" };
     }
-    if (!node.allowedRoles.includes(userRole)) {
+    if (!effectiveRestriction.includes(userRole)) {
       return { visible: false, reason: "role not in allowed roles" };
     }
   }

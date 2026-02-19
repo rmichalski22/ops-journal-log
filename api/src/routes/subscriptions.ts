@@ -14,13 +14,13 @@ export async function subscriptionRoutes(fastify: FastifyInstance) {
     const user = requireAuth(req);
     const subs = await prisma.subscription.findMany({
       where: { userId: user.id },
-      include: { node: { select: { id: true, name: true, path: true } } },
+      include: { node: { select: { id: true, name: true, path: true, pathIds: true, visibilityMode: true, allowedRoles: true } } },
     });
     const visible: typeof subs = [];
     for (const s of subs) {
       if (await nodeIsVisibleToUser(user.role, s.node)) visible.push(s);
     }
-    return { subscriptions: visible };
+    return { subscriptions: visible.map((s) => ({ ...s, node: { id: s.node.id, name: s.node.name, path: s.node.path } })) };
   });
 
   fastify.post<{
@@ -33,6 +33,22 @@ export async function subscriptionRoutes(fastify: FastifyInstance) {
     };
   }>(
     "/",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["nodeId"],
+          properties: {
+            nodeId: { type: "string" },
+            includeDescendants: { type: "boolean" },
+            notifyOnEdit: { type: "boolean" },
+            mode: { type: "string", enum: ["immediate", "daily", "weekly"] },
+            impactThreshold: { anyOf: [{ type: "string", enum: ["low", "medium", "high"] }, { type: "null" }] },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (
       req: FastifyRequest<{
         Body: {
@@ -80,6 +96,15 @@ export async function subscriptionRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string } }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = requireAuth(req);
       const sub = await prisma.subscription.findFirst({

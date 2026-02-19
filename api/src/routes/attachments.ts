@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../db.js";
 import { requireEditor } from "../services/nodes.js";
+import { requireAuth } from "../services/nodes.js";
 import { canUserAccessRecord } from "../services/records.js";
 import { getStorageBackendSync } from "../lib/storage.js";
 import { createAuditEvent } from "../services/audit.js";
 import { nanoid } from "nanoid";
+import { basename } from "node:path";
+import { config } from "../config.js";
 
 function notFound(reply: FastifyReply) {
   return reply.status(404).send({ error: "Not found" });
@@ -15,6 +18,15 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
     Params: { recordId: string };
   }>(
     "/:recordId",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["recordId"],
+          properties: { recordId: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { recordId: string } }>, reply: FastifyReply) => {
       const user = requireEditor(req);
       const record = await prisma.changeRecord.findFirst({
@@ -26,6 +38,9 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
 
       const data = await req.file();
       if (!data) return reply.status(400).send({ error: "No file uploaded" });
+      if (!config.attachments.allowedMimeTypes.includes(data.mimetype)) {
+        return reply.status(400).send({ error: "Unsupported file type" });
+      }
 
       const buffer = await data.toBuffer();
       const sizeBytes = buffer.length;
@@ -57,8 +72,17 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
     Params: { id: string };
   }>(
     "/:id/download",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const att = await prisma.attachment.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: { record: { include: { node: true } } },
@@ -68,8 +92,9 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
 
       const storage = getStorageBackendSync();
       const stream = await storage.read(att.storageKey);
+      const safeName = basename(att.filename).replace(/[\r\n"\\]/g, "_");
       reply.header("Content-Type", att.mimeType);
-      reply.header("Content-Disposition", `attachment; filename="${att.filename}"`);
+      reply.header("Content-Disposition", `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`);
       return reply.send(stream);
     }
   );
@@ -78,6 +103,15 @@ export async function attachmentRoutes(fastify: FastifyInstance) {
     Params: { id: string };
   }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = requireEditor(req);
       const att = await prisma.attachment.findFirst({

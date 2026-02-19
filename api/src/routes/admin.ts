@@ -15,6 +15,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     };
   }>(
     "/audit",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          properties: {
+            type: { type: "string" },
+            actorId: { type: "string" },
+            from: { type: "string", format: "date-time" },
+            to: { type: "string", format: "date-time" },
+            limit: { type: "string" },
+            offset: { type: "string" },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (req: FastifyRequest<{ Querystring: Record<string, string | undefined> }>, reply: FastifyReply) => {
       requireAdmin(req);
       const { type, actorId, from, to, limit, offset } = req.query as Record<string, string | undefined>;

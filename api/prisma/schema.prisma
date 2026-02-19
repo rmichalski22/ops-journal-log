@@ -239,6 +239,7 @@ model NotificationOutbox {
   @@index([status, scheduledAt])
   @@index([userId])
   @@index([subscriptionId])
+  @@unique([userId, recordId, eventType, subscriptionId])
 }
 
 model AuditEvent {

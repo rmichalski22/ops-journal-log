@@ -10,6 +10,7 @@ import {
   requireAdmin,
 } from "../services/nodes.js";
 import { createAuditEvent } from "../services/audit.js";
+import { canAdminNodes } from "../lib/permissions.js";
 
 function notFound(reply: FastifyReply) {
   return reply.status(404).send({ error: "Not found" });
@@ -56,6 +57,15 @@ export async function nodeRoutes(fastify: FastifyInstance) {
 
   fastify.get<{ Params: { id: string } }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = requireAuth(req);
       const node = await prisma.node.findFirst({
@@ -72,6 +82,22 @@ export async function nodeRoutes(fastify: FastifyInstance) {
     Body: { parentId?: string; name: string; type?: NodeType; visibilityMode?: VisibilityMode; allowedRoles?: string[] };
   }>(
     "/",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            parentId: { type: "string" },
+            name: { type: "string", minLength: 1, maxLength: 200 },
+            type: { type: "string", enum: ["system", "service", "module", "other"] },
+            visibilityMode: { type: "string", enum: ["inherit", "public_internal", "restricted"] },
+            allowedRoles: { type: "array", items: { type: "string", enum: ["admin", "editor"] } },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (req: FastifyRequest<{ Body: { parentId?: string; name: string; type?: NodeType; visibilityMode?: VisibilityMode; allowedRoles?: string[] } }>, reply: FastifyReply) => {
       const user = requireEditor(req);
       const { parentId, name, type, visibilityMode } = req.body;
@@ -99,6 +125,26 @@ export async function nodeRoutes(fastify: FastifyInstance) {
     Body: { name?: string; type?: NodeType; visibilityMode?: VisibilityMode; allowedRoles?: string[]; parentId?: string };
   }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+        body: {
+          type: "object",
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: 200 },
+            type: { type: "string", enum: ["system", "service", "module", "other"] },
+            visibilityMode: { type: "string", enum: ["inherit", "public_internal", "restricted"] },
+            allowedRoles: { type: "array", items: { type: "string", enum: ["admin", "editor"] } },
+            parentId: { anyOf: [{ type: "string" }, { type: "null" }] },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (
       req: FastifyRequest<{
         Params: { id: string };
@@ -115,10 +161,10 @@ export async function nodeRoutes(fastify: FastifyInstance) {
       const allowedRoles = ar?.filter((r) => r === "admin" || r === "editor") as ("admin" | "editor")[] | undefined;
 
       const moveNode = newParentId !== undefined && newParentId !== node.parentId;
-      if (moveNode && !requireAdmin(req)) {
+      if (moveNode && !canAdminNodes(user.role)) {
         return reply.status(403).send({ error: "Only admin can move nodes" });
       }
-      if ((visibilityMode || allowedRoles) && !requireAdmin(req)) {
+      if ((visibilityMode || allowedRoles) && !canAdminNodes(user.role)) {
         return reply.status(403).send({ error: "Only admin can restrict visibility" });
       }
 
@@ -141,8 +187,14 @@ export async function nodeRoutes(fastify: FastifyInstance) {
       }
 
       if (moveNode && newParentId !== null) {
+        if (newParentId === node.id) {
+          return reply.status(400).send({ error: "Cannot move node under itself" });
+        }
         const newParent = await prisma.node.findFirst({ where: { id: newParentId, deletedAt: null } });
         if (!newParent) return reply.status(400).send({ error: "New parent not found" });
+        if (newParent.pathIds.includes(node.id)) {
+          return reply.status(400).send({ error: "Cannot move node under its descendant" });
+        }
         const newPath = `${newParent.path}/${node.slug}`;
         const newPathIds = [...newParent.pathIds, newParentId];
         updates.parentId = newParentId;
@@ -168,7 +220,15 @@ export async function nodeRoutes(fastify: FastifyInstance) {
     }
   );
 
-  fastify.delete<{ Params: { id: string } }>("/:id", async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>("/:id", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["id"],
+        properties: { id: { type: "string" } },
+      },
+    },
+  }, async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const user = requireEditor(req);
     const node = await prisma.node.findFirst({ where: { id: req.params.id, deletedAt: null } });
     if (!node) return notFound(reply);

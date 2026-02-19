@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
-type Record = {
+type RecordDetail = {
   id: string;
   title: string;
   description: string;
@@ -22,8 +22,8 @@ type Record = {
     id: string;
     createdAt: string;
     editor: { email: string };
-    snapshotBefore: Record<string, unknown>;
-    snapshotAfter: Record<string, unknown>;
+    snapshotBefore: { [key: string]: unknown };
+    snapshotAfter: { [key: string]: unknown };
   }>;
   attachments: Array<{
     id: string;
@@ -39,7 +39,7 @@ export default function RecordDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const [record, setRecord] = useState<Record | null>(null);
+  const [record, setRecord] = useState<RecordDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRevisions, setShowRevisions] = useState(false);
   const [uploading, setUploading] = useState(false);

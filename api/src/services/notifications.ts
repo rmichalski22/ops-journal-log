@@ -37,19 +37,21 @@ export async function enqueueNotifications(data: { recordId: string; eventType: 
 
   const seen = new Set<string>();
   const allSubs = [...directSubs, ...ancestorSubs];
+  const rows: Array<{ userId: string; recordId: string; subscriptionId: string; eventType: "new_record" | "edited_record"; status: "pending" }> = [];
   for (const sub of allSubs) {
     const key = `${sub.userId}-${sub.nodeId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     if (!impactMeetsThreshold(record.impact, sub.impactThreshold)) continue;
-    await prisma.notificationOutbox.create({
-      data: {
-        userId: sub.userId,
-        recordId: record.id,
-        subscriptionId: sub.id,
-        eventType: data.eventType,
-        status: "pending",
-      },
+    rows.push({
+      userId: sub.userId,
+      recordId: record.id,
+      subscriptionId: sub.id,
+      eventType: data.eventType,
+      status: "pending",
     });
+  }
+  if (rows.length > 0) {
+    await prisma.notificationOutbox.createMany({ data: rows, skipDuplicates: true });
   }
 }

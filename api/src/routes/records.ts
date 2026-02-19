@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ChangeType, Impact, RecordStatus } from "@prisma/client";
 import { prisma } from "../db.js";
-import { requireEditor } from "../services/nodes.js";
+import { requireAuth, requireEditor } from "../services/nodes.js";
 import { nodeIsVisibleToUser } from "../services/nodes.js";
 import {
   recordToSnapshot,
@@ -17,8 +17,17 @@ function notFound(reply: FastifyReply) {
 export async function recordRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const record = await prisma.changeRecord.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: {
@@ -35,10 +44,19 @@ export async function recordRoutes(fastify: FastifyInstance) {
     }
   );
 
-  fastify.get<{ Params: { id: string }; Querystring: { rev?: string } }>(
+  fastify.get<{ Params: { id: string; revId: string } }>(
     "/:id/revisions/:revId",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id", "revId"],
+          properties: { id: { type: "string" }, revId: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string; revId: string } }>, reply: FastifyReply) => {
-      const user = requireEditor(req);
+      const user = requireAuth(req);
       const record = await prisma.changeRecord.findFirst({
         where: { id: req.params.id, deletedAt: null },
         include: { node: true },
@@ -69,6 +87,27 @@ export async function recordRoutes(fastify: FastifyInstance) {
     };
   }>(
     "/",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["nodeId", "title", "description"],
+          properties: {
+            nodeId: { type: "string" },
+            occurredAt: { type: "string", format: "date-time" },
+            title: { type: "string", minLength: 1, maxLength: 300 },
+            description: { type: "string", minLength: 1 },
+            reason: { type: "string" },
+            changeType: { type: "string", enum: ["feature", "fix", "migration", "config", "other"] },
+            impact: { type: "string", enum: ["low", "medium", "high"] },
+            status: { type: "string", enum: ["planned", "completed", "rolled_back", "monitoring"] },
+            links: { type: "array", items: { type: "string" } },
+            secretAck: { type: "boolean" },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (
       req: FastifyRequest<{
         Body: {
@@ -121,7 +160,7 @@ export async function recordRoutes(fastify: FastifyInstance) {
           recordId: record.id,
           editorId: user.id,
           snapshotBefore: {},
-          snapshotAfter: recordToSnapshot(record),
+          snapshotAfter: recordToSnapshot(record) as object,
           secretAck: hasSecrets ? true : null,
         },
       });
@@ -150,6 +189,30 @@ export async function recordRoutes(fastify: FastifyInstance) {
     }>;
   }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+        body: {
+          type: "object",
+          properties: {
+            occurredAt: { type: "string", format: "date-time" },
+            title: { type: "string", minLength: 1, maxLength: 300 },
+            description: { type: "string", minLength: 1 },
+            reason: { type: "string" },
+            changeType: { type: "string", enum: ["feature", "fix", "migration", "config", "other"] },
+            impact: { type: "string", enum: ["low", "medium", "high"] },
+            status: { type: "string", enum: ["planned", "completed", "rolled_back", "monitoring"] },
+            links: { type: "array", items: { type: "string" } },
+            secretAck: { type: "boolean" },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
     async (
       req: FastifyRequest<{
         Params: { id: string };
@@ -189,7 +252,7 @@ export async function recordRoutes(fastify: FastifyInstance) {
         occurredAt: updates.occurredAt ? new Date(updates.occurredAt) : record.occurredAt,
       };
 
-      const { hasSecrets } = checkSecrets(merged);
+      const { hasSecrets } = checkSecrets({ ...merged, reason: merged.reason ?? undefined });
       if (hasSecrets && !updates.secretAck) {
         return reply.status(400).send({ error: "Secret patterns detected; confirm with secretAck: true" });
       }
@@ -234,6 +297,15 @@ export async function recordRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string } }>(
     "/:id",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string" } },
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = requireEditor(req);
       const record = await prisma.changeRecord.findFirst({
