@@ -121,7 +121,7 @@ export async function recordRoutes(fastify: FastifyInstance) {
           recordId: record.id,
           editorId: user.id,
           snapshotBefore: {},
-          snapshotAfter: recordToSnapshot(record),
+          snapshotAfter: recordToSnapshot(record) as unknown as Record<string, unknown>,
           secretAck: hasSecrets ? true : null,
         },
       });

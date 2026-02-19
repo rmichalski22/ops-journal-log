@@ -5,7 +5,7 @@ import type { SessionUser } from "../types.js";
 const SESSION_COOKIE = "session";
 
 export async function authPlugin(fastify: FastifyInstance) {
-  fastify.decorateRequest("user", null as SessionUser | null | undefined);
+  fastify.decorateRequest("user", undefined as SessionUser | undefined);
 
   fastify.addHook("preHandler", async (req: FastifyRequest, reply: FastifyReply) => {
     const token = req.cookies?.[SESSION_COOKIE] ?? req.headers.authorization?.replace(/^Bearer\s+/i, "");

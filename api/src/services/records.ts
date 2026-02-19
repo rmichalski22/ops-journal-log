@@ -43,7 +43,7 @@ export async function canUserAccessRecord(
   return nodeIsVisibleToUser(userRole as "admin" | "editor", node as Parameters<typeof nodeIsVisibleToUser>[1]);
 }
 
-export function checkSecrets(data: { title?: string; description?: string; reason?: string; links?: string[] }): {
+export function checkSecrets(data: { title?: string; description?: string; reason?: string | null; links?: string[] }): {
   hasSecrets: boolean;
 } {
   return { hasSecrets: scanRecordForSecrets(data) };
