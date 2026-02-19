@@ -33,7 +33,6 @@ type ChangeRecord = {
   }>;
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function RecordDetailPage() {
   const params = useParams();
@@ -124,7 +123,7 @@ export default function RecordDetailPage() {
             {record.attachments.map((a) => (
               <li key={a.id}>
                 <a
-                  href={`${API}/api/attachments/${a.id}/download`}
+                  href={`/api/attachments/${a.id}/download`}
                   className="text-blue-600 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"

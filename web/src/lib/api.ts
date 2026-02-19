@@ -1,14 +1,15 @@
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
 type Options = RequestInit & { params?: Record<string, string> };
 
 async function fetchApi(path: string, options: Options = {}) {
   const { params, ...init } = options;
-  const url = new URL(`${API}${path}`);
-  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  let url = path;
+  if (params) {
+    const sp = new URLSearchParams(params);
+    url = `${path}?${sp.toString()}`;
+  }
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   if (!(init.body instanceof FormData) && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
-  const res = await fetch(url.toString(), {
+  const res = await fetch(url, {
     ...init,
     credentials: "include",
     headers,

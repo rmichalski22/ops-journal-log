@@ -17,8 +17,6 @@ services:
 
   api:
     build: ./api
-    ports:
-      - "3001:3001"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ops_journal_log
       API_PORT: 3001
@@ -31,12 +29,11 @@ services:
         condition: service_healthy
 
   web:
-    build:
-      context: ./web
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    build: ./web
     ports:
       - "3000:3000"
+    environment:
+      INTERNAL_API_URL: http://api:3001
     depends_on:
       - api
 
