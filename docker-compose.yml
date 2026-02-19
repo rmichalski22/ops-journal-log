@@ -19,6 +19,7 @@ services:
       API_PORT: 3001
       SESSION_SECRET: ${SESSION_SECRET:-dev-secret-change-in-prod}
       ATTACHMENTS_DIR: /app/uploads
+      ALLOWED_ORIGINS: http://localhost:3000
     volumes:
       - ./api/uploads:/app/uploads
     depends_on:

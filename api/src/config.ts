@@ -9,6 +9,10 @@ function env(key: string, defaultValue?: string): string {
 export const config = {
   port: parseInt(process.env.API_PORT ?? "3001", 10),
   databaseUrl: env("DATABASE_URL"),
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean),
   sessionSecret: process.env.SESSION_SECRET || "dev-secret-change-me",
   sessionMaxAgeDays: parseInt(process.env.SESSION_MAX_AGE_DAYS ?? "7", 10),
   smtp: {
@@ -22,6 +26,11 @@ export const config = {
   attachments: {
     dir: resolve(process.env.ATTACHMENTS_DIR ?? "./uploads"),
     maxSizeBytes: (parseInt(process.env.ATTACHMENTS_MAX_SIZE_MB ?? "10", 10) || 10) * 1024 * 1024,
+    allowedMimeTypes: (process.env.ATTACHMENTS_ALLOWED_MIME_TYPES
+      ?? "application/pdf,image/png,image/jpeg,image/webp,text/plain")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean),
     s3: {
       endpoint: process.env.S3_ENDPOINT,
       bucket: process.env.S3_BUCKET,

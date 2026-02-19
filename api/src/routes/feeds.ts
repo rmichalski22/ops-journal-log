@@ -18,7 +18,26 @@ export async function feedRoutes(fastify: FastifyInstance) {
       limit?: string;
       offset?: string;
     };
-  }>("/", async (req: FastifyRequest<{ Querystring: Record<string, string | undefined> }>, reply: FastifyReply) => {
+  }>("/", {
+    schema: {
+      querystring: {
+        type: "object",
+        properties: {
+          from: { type: "string", format: "date-time" },
+          to: { type: "string", format: "date-time" },
+          nodeId: { type: "string" },
+          includeDescendants: { type: "string", enum: ["true", "false"] },
+          createdById: { type: "string" },
+          changeType: { type: "string", enum: ["feature", "fix", "migration", "config", "other"] },
+          impact: { type: "string", enum: ["low", "medium", "high"] },
+          status: { type: "string", enum: ["planned", "completed", "rolled_back", "monitoring"] },
+          limit: { type: "string" },
+          offset: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (req: FastifyRequest<{ Querystring: Record<string, string | undefined> }>, reply: FastifyReply) => {
     const user = requireAuth(req);
     const {
       from,
@@ -62,19 +81,16 @@ export async function feedRoutes(fastify: FastifyInstance) {
     const limitNum = Math.min(parseInt(limit ?? "50", 10) || 50, 100);
     const offsetNum = parseInt(offset ?? "0", 10) || 0;
 
-    const [records, total] = await Promise.all([
-      prisma.changeRecord.findMany({
-        where,
-        include: {
-          node: { select: { id: true, name: true, path: true } },
-          createdBy: { select: { email: true } },
-        },
-        orderBy: { occurredAt: "desc" },
-        take: limitNum,
-        skip: offsetNum,
-      }),
-      prisma.changeRecord.count({ where }),
-    ]);
+    const records = await prisma.changeRecord.findMany({
+      where,
+      include: {
+        node: { select: { id: true, name: true, path: true, pathIds: true, visibilityMode: true, allowedRoles: true } },
+        createdBy: { select: { email: true } },
+      },
+      orderBy: { occurredAt: "desc" },
+      take: limitNum,
+      skip: offsetNum,
+    });
 
     const visible: typeof records = [];
     for (const r of records) {
@@ -83,6 +99,11 @@ export async function feedRoutes(fastify: FastifyInstance) {
       }
     }
 
-    return { records: visible, total, limit: limitNum, offset: offsetNum };
+    const sanitizedRecords = visible.map((r) => ({
+      ...r,
+      node: { id: r.node.id, name: r.node.name, path: r.node.path },
+    }));
+
+    return { records: sanitizedRecords, total: sanitizedRecords.length, limit: limitNum, offset: offsetNum };
   });
 }
